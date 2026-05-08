@@ -33,6 +33,17 @@ export class DiscoveryManager {
     this.socket.on('message', (msg, rinfo) => {
       try {
         const data = JSON.parse(msg.toString());
+        const localIps = new Set<string>();
+        for (const net of Object.values(os.networkInterfaces())) {
+          for (const iface of (net || [])) {
+            if (iface.family === 'IPv4') localIps.add(iface.address);
+          }
+        }
+
+        if (localIps.has(rinfo.address)) {
+          return; // Ignore messages from our own machine (prevents ghost processes)
+        }
+
         if (data.deviceId && data.deviceId !== this.deviceId) {
           this.devices.set(data.deviceId, {
             name: data.deviceName || 'Unknown',

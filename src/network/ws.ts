@@ -11,7 +11,7 @@ export interface SyncMessage {
 export class NetworkManager {
   private wss: WebSocketServer | null = null;
   private clients: Set<WebSocket> = new Set();
-  private wsClient: WebSocket | null = null;
+  private wsClients: Set<WebSocket> = new Set();
   private readonly deviceId: string;
   private readonly onMessage: (msg: SyncMessage) => void;
   public isConnected: boolean = false;
@@ -78,7 +78,7 @@ export class NetworkManager {
 
       ws.on('open', () => {
         clearTimeout(timeout);
-        this.wsClient = ws;
+        this.wsClients.add(ws);
         this.setupHeartbeat(ws);
         
         ws.on('message', (data) => {
@@ -95,8 +95,10 @@ export class NetworkManager {
         });
         
         ws.on('close', () => {
-          this.wsClient = null;
-          this.isConnected = false;
+          this.wsClients.delete(ws);
+          if (this.wsClients.size === 0 && this.clients.size === 0) {
+            this.isConnected = false;
+          }
         });
 
         // Send HELLO
@@ -122,9 +124,11 @@ export class NetworkManager {
       }
     }
     
-    // Send to connected server if we are a client
-    if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      this.wsClient.send(data);
+    // Send to connected servers if we are a client
+    for (const client of this.wsClients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
     }
   }
 

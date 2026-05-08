@@ -27,11 +27,11 @@ export async function startInteractiveDesktop() {
   const discovery = new DiscoveryManager(deviceId, deviceName, port);
   discovery.start();
   
-  while (!network.isConnected) {
+  let proceedToRole = false;
+
+  while (!proceedToRole) {
     p.log.info('Scanning LAN for devices... (waiting 3 seconds)');
     await new Promise(r => setTimeout(r, 3000));
-    
-    if (network.isConnected) break;
 
     const devices = discovery.getDiscoveredDevices();
     let targetDevice: DiscoveredDevice | null = null;
@@ -43,9 +43,14 @@ export async function startInteractiveDesktop() {
     
     choices.push({ value: 'refresh' as any, label: 'Refresh / Wait for incoming connection' });
     choices.push({ value: 'manual' as any, label: 'Manual IP Connect' });
+    if (network.isConnected) {
+      choices.push({ value: 'proceed' as any, label: 'Proceed to Sync Role (Done connecting)' });
+    }
     
     const selection = await p.select({
-      message: 'Select a device to connect to:',
+      message: network.isConnected 
+        ? 'Connected! Connect to another device, or proceed?' 
+        : 'Select a device to connect to:',
       options: choices,
     });
     
@@ -53,15 +58,29 @@ export async function startInteractiveDesktop() {
       p.outro('Cancelled.');
       process.exit(0);
     }
+
+    if (selection === 'proceed') {
+      proceedToRole = true;
+      break;
+    }
     
     if (selection === 'refresh') {
       const s = p.spinner();
       s.start(`Listening on port ${port}. Waiting for connections...`);
+      let newlyConnected = false;
+      const initialClients = (network as any).wsClients?.size + (network as any).clients?.size;
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 500));
-        if (network.isConnected) break;
+        const currentClients = (network as any).wsClients?.size + (network as any).clients?.size;
+        if (currentClients > initialClients) {
+          newlyConnected = true;
+          break;
+        }
       }
       s.stop('Scan finished.');
+      if (newlyConnected) {
+        p.log.success(`Incoming connection established!`);
+      }
       continue;
     }
 
@@ -81,22 +100,18 @@ export async function startInteractiveDesktop() {
       const success = await network.connect(targetDevice.ip, targetDevice.port);
       if (success) {
         s.stop(`Connected to ${targetDevice.name}!`);
-        break;
       } else {
         s.stop(`Failed to connect to ${targetDevice.name}.`);
       }
     }
   }
 
-  p.log.success(`Connection established with ${network.connectedPeer || 'remote device'}!`);
-
   const roleSelection = await p.select({
     message: 'Select Sync Role:',
     options: [
       { value: 'bidirectional', label: 'Bidirectional (Sync both ways)' },
       { value: 'publisher', label: 'Publisher (Only send local copy events to remote)' },
-      { value: 'subscriber', label: 'Subscriber (Only receive remote events and overwrite local)' },
-      { value: 'commander', label: 'Hardware Commander (Send to Pi)' }
+      { value: 'subscriber', label: 'Subscriber (Only receive remote events and overwrite local)' }
     ],
   });
 
@@ -105,11 +120,8 @@ export async function startInteractiveDesktop() {
   }
 
   clipManager = new DesktopClipboard(network);
+  await clipManager.init(roleSelection as 'publisher' | 'subscriber' | 'bidirectional');
   
-  if (roleSelection === 'commander') {
-    await startCommanderLoop(network, clipManager);
-  } else {
-    await clipManager.init(roleSelection as 'publisher' | 'subscriber' | 'bidirectional');
-    p.note(`Sync active in ${roleSelection} mode.\nPress Ctrl+C to quit.`);
-  }
+  p.note(`Sync active in ${roleSelection} mode.\nYou can also type commands below to send hardware instructions to any connected Pi!`);
+  await startCommanderLoop(network, clipManager);
 }
