@@ -20,7 +20,13 @@ export class DesktopClipboard {
     this.isSubscriber = role === 'subscriber' || role === 'bidirectional';
 
     if (this.isPublisher) {
-      this.lastKnownContent = await this.clipboardy.read();
+      try {
+        this.lastKnownContent = await this.clipboardy.read();
+      } catch (err) {
+        // Windows clipboardy fallback panics if clipboard is empty or contains non-text.
+        // We can safely ignore this initial read failure.
+        this.lastKnownContent = '';
+      }
       this.startPolling();
     }
   }
@@ -63,7 +69,11 @@ export class DesktopClipboard {
     if (!this.clipboardy) {
        this.clipboardy = (await import('clipboardy')).default;
     }
-    return this.clipboardy.read();
+    try {
+      return await this.clipboardy.read();
+    } catch (err) {
+      return '';
+    }
   }
 
   stop() {

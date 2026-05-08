@@ -14,6 +14,8 @@ export class NetworkManager {
   private wsClient: WebSocket | null = null;
   private readonly deviceId: string;
   private readonly onMessage: (msg: SyncMessage) => void;
+  public isConnected: boolean = false;
+  public connectedPeer: string | null = null;
   private isServer = false;
 
   constructor(deviceId: string, onMessage: (msg: SyncMessage) => void) {
@@ -33,6 +35,13 @@ export class NetworkManager {
         ws.on('message', (data) => {
           try {
             const msg: SyncMessage = JSON.parse(data.toString());
+            if (msg.type === 'HELLO' || msg.type === 'ACK') {
+              this.isConnected = true;
+              this.connectedPeer = msg.sourceId;
+              if (msg.type === 'HELLO') {
+                this.broadcast({ type: 'ACK', sourceId: this.deviceId, timestamp: Date.now() });
+              }
+            }
             this.onMessage(msg);
           } catch (e) {
             console.error('Failed to parse incoming message', e);
@@ -75,6 +84,10 @@ export class NetworkManager {
         ws.on('message', (data) => {
           try {
             const msg: SyncMessage = JSON.parse(data.toString());
+            if (msg.type === 'HELLO' || msg.type === 'ACK') {
+              this.isConnected = true;
+              this.connectedPeer = msg.sourceId;
+            }
             this.onMessage(msg);
           } catch (e) {
             // Ignore parse errors
@@ -83,10 +96,12 @@ export class NetworkManager {
         
         ws.on('close', () => {
           this.wsClient = null;
+          this.isConnected = false;
         });
 
         // Send HELLO
         this.broadcast({ type: 'HELLO', sourceId: this.deviceId, timestamp: Date.now() });
+        this.isConnected = true;
         resolve(true);
       });
 
