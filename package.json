@@ -11,8 +11,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
-    "bonjour-service": "^1.2.1",
-    "clipboardy": "^4.0.0",
+    "clipboardy": "^5.3.1",
     "picocolors": "^1.0.0",
     "uuid": "^14.0.0",
     "ws": "^8.16.0"

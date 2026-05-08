@@ -13,8 +13,8 @@ export class DesktopClipboard {
   }
 
   async init(role: 'publisher' | 'subscriber' | 'bidirectional') {
-    // Dynamically import clipboardy so it doesn't crash headless ARM devices
-    this.clipboardy = (await import('clipboardy')).default;
+    const mod = await import('clipboardy');
+    this.clipboardy = mod.default || mod;
     
     this.isPublisher = role === 'publisher' || role === 'bidirectional';
     this.isSubscriber = role === 'subscriber' || role === 'bidirectional';
@@ -67,7 +67,8 @@ export class DesktopClipboard {
 
   async getLocalClipboard(): Promise<string> {
     if (!this.clipboardy) {
-       this.clipboardy = (await import('clipboardy')).default;
+       const mod = await import('clipboardy');
+       this.clipboardy = mod.default || mod;
     }
     try {
       return await this.clipboardy.read();

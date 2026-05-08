@@ -69,7 +69,7 @@ export async function startInteractiveDesktop() {
       const manualIp = await p.text({ message: 'Enter IP:PORT :' });
       if (manualIp && typeof manualIp === 'string' && manualIp.includes(':')) {
          const [ip, portStr] = manualIp.split(':');
-         targetDevice = { name: 'Manual Device', ip, port: parseInt(portStr, 10) };
+         targetDevice = { name: 'Manual Device', ip, port: parseInt(portStr, 10), lastSeen: Date.now() };
       }
     } else {
       targetDevice = selection as DiscoveredDevice;
