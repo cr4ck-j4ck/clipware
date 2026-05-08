@@ -1,0 +1,67 @@
+Product Requirements Document (PRD)
+Project Name: Universal C-Lipsync & Hardware Typer
+Platform: Node.js CLI (Cross-Platform + Raspberry Pi ARM)
+Language: TypeScript
+Architecture: Monorepo (Single Codebase, Dynamic Role Execution)
+
+1. Overview & Problem Statement
+The user requires a solution to bypass strict application-level restrictions that prevent pasting text into an assignment editor on a Windows machine. The previous software-based UI Automation (.set / .insert) approach failed due to un-editable scaffolding code.The Solution: A unified CLI tool that operates on the Local Area Network (LAN). It provides selective clipboard synchronization between desktop machines AND features a hardware-level keystroke injection mode using a Raspberry Pi acting as a USB HID (Human Interface Device).
+
+2. Technical Stack
+Runtime: Node.js
+
+Language: TypeScript (for strict typing of network payloads and configuration).
+
+Networking / Discovery: bonjour-service (for zero-config mDNS device discovery).
+
+Communication: ws (WebSockets) for real-time, low-latency payload transfer.
+
+Terminal UI (TUI): @clack/prompts and picocolors for a beautiful, modern interactive command-line interface.
+
+Desktop OS Clipboard: clipboardy (dynamically imported to prevent crashes on headless Linux/Pi environments).
+
+Hardware Interaction (Pi): Native Node.js fs module to write hex buffer data to /dev/hidg0.
+
+3. System Architecture: The Monorepo Approach
+Instead of maintaining separate codebases for the PC and the Raspberry Pi, this project uses a Dynamic Role-Based Architecture within a single codebase.
+
+Startup Handshake Flow:
+
+Hardware Check: On execution (pnpm start), the app immediately checks if the file /dev/hidg0 exists.
+
+Headless Mode (Raspberry Pi): If the file exists, the app assumes the Hardware Typer role. It skips all UI elements, broadcasts its presence as "Raspberry Pi Typer" via mDNS, starts a WebSocket server, and waits for incoming text to inject via USB.
+
+Interactive Mode (Desktops): If the file does NOT exist, it launches the interactive TUI. It scans the network, lists discovered devices, and asks the user to establish a connection and select a specific directional role.
+
+4. Roles and Connection Modes
+When running on a Desktop (Linux/Windows), the user can select one of the following roles after selecting a target device from the network list:
+
+Publisher (Broadcast Only): * Use Case: Running on Linux PC.
+
+Behavior: Watches the local Linux clipboard. Whenever something is copied, it sends the payload to the connected target. It ignores any incoming payloads from the target.
+
+Subscriber (Receive Only): * Use Case: Running on Windows Laptop.
+
+Behavior: Listens for incoming WebSockets payloads and writes them to the Windows clipboard. It does not monitor or broadcast its own local copy events.
+
+Bidirectional (Standard Sync): * Behavior: The legacy C-Lipsync behavior where both machines share clipboard state equally.
+
+Hardware Injection (Send to Pi): * Behavior: Connects to the detected Raspberry Pi. Provides a CLI prompt to the user (e.g., .typeclip) which reads the local clipboard and sends it to the Pi for hardware-level typing on the Windows machine.
+
+5. UI / UX Flow (Terminal)
+Welcome Screen: Displays ASCII logo and current local IP.
+
+Discovery: Shows a live-updating list: Looking for devices on the same WiFi...
+
+Device List: User uses arrow keys to select a target (e.g., [ ] Fedora-PC, [ ] Windows-Laptop, [x] Raspberry-Pi-Typer).
+
+Mode Selection: User uses arrow keys to select the sync direction (Publisher, Subscriber, Bidirectional).
+
+Active State: Dashboard showing connection status, ping, and recent events (e.g., "Copied 45 chars to Pi").
+
+6. Edge Cases & Resilience
+Dynamic Imports: The clipboardy library MUST be imported dynamically (await import('clipboardy')) only if the device is confirmed as a desktop. If imported globally on a headless Pi without an X11/Wayland display server, it will crash the app.
+
+Network Drops: WebSockets must implement a heartbeat (ping/pong). If a device disconnects, the app should automatically switch back to the "Scanning" UI and attempt to reconnect.
+
+Typing Delays: When the Pi acts as a hardware typer, it must type characters with a ~30ms delay to prevent crashing the target OS's input buffer.

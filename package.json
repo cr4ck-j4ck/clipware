@@ -1,0 +1,27 @@
+{
+  "name": "universal-c-lipsync",
+  "version": "1.0.0",
+  "description": "Universal C-Lipsync LAN clipboard and remote text hardware helper",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "bonjour-service": "^1.2.1",
+    "clipboardy": "^4.0.0",
+    "picocolors": "^1.0.0",
+    "uuid": "^14.0.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/uuid": "^11.0.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5"
+  }
+}
